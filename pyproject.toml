@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "lib-dzne-seq"
+version = "0.2.0"
+description = "Libary for handling genetic sequences. "
+license = { file = "LICENSE" }
+authors = [{ name = "Johannes Horler", email = "johannes.horler@dzne.de" }]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = []
+dependencies = [
+    'Bio>=1.5.3',
+    'lib-dzne-data>=0.1.2',
+]
+requires-python = ">=3.11"
+
