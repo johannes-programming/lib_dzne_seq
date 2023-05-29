@@ -1,7 +1,8 @@
 import Bio.Seq as _Seq
 import Bio.SeqIO as _SeqIO
 import Bio.SeqRecord as _SeqRecord
-import lib_dzne_data as _lib_dzne_data
+import lib_dzne_filedata as _fd
+import lib_dzne_math.na as _na
 
 
 class SeqRead:
@@ -57,9 +58,31 @@ class SeqRead:
             raise ValueError("Quality Value must be in the range from 0 to 100. ")
     
 
+class SeqReadData(_fd.FileData):
+    @staticmethod
+    def clone_data(data):
+        return SeqRead(read=data)
+    @classmethod
+    def _load(cls, /, file):
+        return SeqRead(file=file, format=cls._format)
+    def _save(self, /, file):
+        self._data.save(file=file, format=type(self)._format)
+    @classmethod
+    def _default(cls):
+        return SeqRead()
+    @classmethod
+    def from_file(cls, file, /):
+        return super().from_file(file, PHDSeqReadData, ABISeqReadData)
+
+class PHDSeqReadData(SeqReadData):
+    _ext = '.phd'
+    _format = 'phd'
+class ABISeqReadData(SeqReadData):
+    _ext = '.ab1'
+    _format = 'abi'
 
 def data(*, seq, go, end):
-    if _lib_dzne_data.anyisna(seq, go, end):
+    if _na.anyisna(seq, go, end):
         return None
     ans = dict()
     ans['go'] = go
@@ -140,7 +163,7 @@ def gravy(translation):
         'Y':-1.3,
         '-':float('nan'),
     }
-    answers = [values[k] for k in translation if _lib_dzne_data.notna(values[k])]
+    answers = [values[k] for k in translation if _na.notna(values[k])]
     if len(answers):
         return sum(answers) / len(answers)
     return float('nan')

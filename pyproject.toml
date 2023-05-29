@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lib-dzne-seq"
-version = "0.2.0"
+version = "0.2.2"
 description = "Libary for handling genetic sequences. "
 license = { file = "LICENSE" }
 authors = [{ name = "Johannes Horler", email = "johannes.horler@dzne.de" }]
@@ -17,7 +17,8 @@ classifiers = [
 keywords = []
 dependencies = [
     'Bio>=1.5.3',
-    'lib-dzne-data>=0.1.2',
+    'lib-dzne-math>=0.2.0',
+    'lib-dzne-filedata>=0.4.0',
 ]
 requires-python = ">=3.11"
 
