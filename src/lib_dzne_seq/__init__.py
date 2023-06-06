@@ -5,79 +5,67 @@ import lib_dzne_filedata as _fd
 import lib_dzne_math.na as _na
 
 
-class SeqRead:
-    def __init__(self, **kwargs):
-        keys = set(kwargs.keys())
-        if keys == {'seq', 'qv'}:
-            self.seq = kwargs['seq']
-            self.qv = kwargs['qv']
-        elif keys == {'record'}:
-            self.record = kwargs['record']
-        elif keys == {'read'}:
-            self.seq = kwargs['read'].seq
-            self.qv = kwargs['read'].qv
-        elif keys == {'file', 'format'}:
-            self.record = _SeqIO.read(kwargs['file'], kwargs['format'])
-        elif keys == {}:
-            self.seq = ""
-            self.qv = 0
-        else:
-            raise NotImplementedError()
+class SeqRead(_fd.FileData):
     def __len__(self):
         return len(self.seq)
-    def save(self, file, format):
-        _SeqIO.write(file, format, self.record)
-    @property
-    def record(self):
-        ans = _SeqRecord.SeqRecord(self.seq)
-        ans.letter_annotations['phred_quality'] = [self.qv] * len(self)
-        return ans
-    @record.setter
-    def record(self, value):
-        self.seq = value.seq
-        ll = value.letter_annotations['phred_quality']
-        if len(ll):
-            self.qv = 100 * sum(ll) / len(ll)
-        else:
-            self.qv = 0
-    @property
-    def seq(self):
-        return self._seq
-    @seq.setter
-    def seq(self, value):
-        self._seq = _Seq.Seq(value)
-    @property
-    def qv(self):
-        return self._qv
-    @qv.setter
-    def qv(self, value):
-        value = int(round(value))
-        if 0 <= value <= 100:
-            self._qv = value
-        else:
-            raise ValueError("Quality Value must be in the range from 0 to 100. ")
-    
-
-class SeqReadData(_fd.FileData):
-    @staticmethod
-    def clone_data(data):
-        return SeqRead(read=data)
     @classmethod
     def _load(cls, /, file):
-        return SeqRead(file=file, format=cls._format)
+        return _SeqIO.read(file, cls._format)
     def _save(self, /, file):
-        self._data.save(file=file, format=type(self)._format)
+        _SeqIO.write(file, type(self)._format, self.data)
     @classmethod
     def _default(cls):
-        return SeqRead()
+        return cls._calc_data(seq="", qv=0)
     @classmethod
     def from_file(cls, file, /):
-        return super().from_file(file, PHDSeqReadData, ABISeqReadData)
+        parentclass, = cls.__bases__
+        return parentclass.from_file(file, PHDSeqReadData, ABISeqReadData)
+    def to_TOMLData(self):
+        return _fd.TOMLData(cls._digest_data(self.data))
+    @classmethod
+    def clone_data(cls, data, /):
+        return cls._calc_data(**cls._digest_data(data))
+    @classmethod
+    def _calc_data(cls, *, qv, seq):
+        qv = int(round(qv))
+        if (qv < 0) or (qv > 100):
+            raise ValueError()
+        seq = normstr(seq)
+        ans = _SeqRecord.SeqRecord(seq)
+        ans.letter_annotations['phred_quality'] = [qv] * len(ans)
+        return ans
+    @classmethod
+    def _digest_data(cls, data):
+        seq = normstr(data.seq)
+        ll = data.letter_annotations['phred_quality']
+        if len(ll) == 0:
+            return dict(seq=seq, qv=0)
+        qv = int(round(sum(ll) / len(ll)))
+        if (qv < 0) or (qv > 100):
+            raise ValueError()
+        return dict(seq=seq, qv=qv)
+    @property
+    def seq(self):
+        return self.data.seq
+    @seq.setter
+    def seq(self, value):
+        kwargs = self._digest_data(self.data)
+        kwargs['seq'] = value
+        self.data = self._calc_data(**kwargs)
+    @property
+    def qv(self):
+        kwargs = self._digest_data(self.data)
+        return kwargs['qv']
+    @qv.setter
+    def qv(self, value):
+        kwargs = self._digest_data(self.data)
+        kwargs['qv'] = value
+        self.data = self._calc_data(**kwargs)
 
-class PHDSeqReadData(SeqReadData):
+class PHDRead(SeqReadData):
     _ext = '.phd'
     _format = 'phd'
-class ABISeqReadData(SeqReadData):
+class ABIRead(SeqReadData):
     _ext = '.ab1'
     _format = 'abi'
 
