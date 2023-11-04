@@ -5,7 +5,7 @@ lib_dzne_seq
 Overview
 --------
 
-lib_dzne_seq
+Libary for handling genetic sequences.
 
 Installation
 ------------

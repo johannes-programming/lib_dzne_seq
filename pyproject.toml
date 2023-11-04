@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lib_dzne_seq"
-version = "0.0.0"
-description = "lib_dzne_seq"
+version = "0.2.5"
+description = "Libary for handling genetic sequences."
 readme = "README.rst"
 authors = [
     { name = "Johannes Programming", email = "johannes-programming@posteo.org" },
@@ -18,8 +18,16 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 keywords = []
-dependencies = []
+dependencies = [
+    'Bio>=1.5.3',
+    'gravy>=1.0.0',
+    'lib-dzne-math>=0.2.0',
+    'lib-dzne-filedata>=0.4.0',
+]
 requires-python = ">=3.11"
 
 [project.license]
 file = "LICENSE.txt"
+
+[project.urls]
+source = "https://github.com/johannes-programming/lib_dzne_seq"
