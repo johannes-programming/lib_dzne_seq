@@ -8,6 +8,20 @@ import lib_dzne_math.na as _na
 class SeqRead(_fd.FileData):
     def __len__(self):
         return len(self.seq)
+    def __iter__(self):
+        return iter(self.seq)
+    def __getitem__(self, key):
+        digest = self._digest_data(self.data)
+        digest['seq'] = digest['seq'][key]
+        return self._calc_data(**digest)
+    def __setitem__(self, key, value):
+        digest = self._digest_data(value)
+        digest['seq'][key] = value
+        self.data = self._calc_data(**digest)
+    def __delitem__(self, key):
+        digest = self._digest_data(self.data)
+        del digest['seq'][key]
+        self.data = self._calc_data(**digest)
     @classmethod
     def _load(cls, /, file):
         return _SeqIO.read(file, cls._format)
@@ -19,9 +33,9 @@ class SeqRead(_fd.FileData):
     @classmethod
     def from_file(cls, file, /):
         parentclass, = cls.__bases__
-        return parentclass.from_file(file, PHDSeqReadData, ABISeqReadData)
+        return parentclass.from_file(file, PHDRead, ABIRead)
     def to_TOMLData(self):
-        return _fd.TOMLData(cls._digest_data(self.data))
+        return _fd.TOMLData(self._digest_data(self.data))
     @classmethod
     def clone_data(cls, data, /):
         return cls._calc_data(**cls._digest_data(data))
@@ -31,12 +45,14 @@ class SeqRead(_fd.FileData):
         if (qv < 0) or (qv > 100):
             raise ValueError()
         seq = normstr(seq)
+        seq = _Seq.Seq(seq)
         ans = _SeqRecord.SeqRecord(seq)
         ans.letter_annotations['phred_quality'] = [qv] * len(ans)
         return ans
     @classmethod
     def _digest_data(cls, data):
         seq = normstr(data.seq)
+        seq = _Seq.Seq(seq)
         ll = data.letter_annotations['phred_quality']
         if len(ll) == 0:
             return dict(seq=seq, qv=0)
@@ -46,7 +62,8 @@ class SeqRead(_fd.FileData):
         return dict(seq=seq, qv=qv)
     @property
     def seq(self):
-        return self.data.seq
+        kwargs = self._digest_data(self.data)
+        return kwargs['seq']
     @seq.setter
     def seq(self, value):
         kwargs = self._digest_data(self.data)
@@ -61,13 +78,121 @@ class SeqRead(_fd.FileData):
         kwargs = self._digest_data(self.data)
         kwargs['qv'] = value
         self.data = self._calc_data(**kwargs)
+    @property
+    def tr(self):
+        return tr(self.seq)
+    @property
+    def contains_stop(self):
+        return '*' in self.tr
+    @property
+    def gravy(self):
+        return gravy(self.tr)
 
-class PHDRead(SeqReadData):
+class PHDRead(SeqRead):
     _ext = '.phd'
     _format = 'phd'
-class ABIRead(SeqReadData):
+class ABIRead(SeqRead):
     _ext = '.ab1'
     _format = 'abi'
+
+
+class FASTAData(_fd.FileData):
+    _ext = '.fasta'
+    def __len__(self):
+        return len(self.data)
+    def __iter__(self):
+        return iter(self.data)
+    def __add__(self, other):
+        return self._add(self, other)
+    def __radd__(self, other):
+        return self._add(other, self)
+    def __mul__(self, other):
+        return self._mul(self, other)
+    def __rmul__(self, other):
+        return self._mul(self, other)
+    def __getitem__(self, key):
+        ans = self.data[key]
+        if type(ans) is list:
+            ans = type(self)(ans)
+        return ans
+    def __setitem__(self, key, value):
+        data = self.data
+        data[key] = value
+        self.data = data
+    def __delitem__(self, key):
+        data = self.data
+        del data[key]
+        self.data = data
+    @classmethod
+    def _add(cls, *objs):
+        items = list()
+        for obj in objs:
+            dataObj = cls(obj)
+            items += dataObj.data
+        ans = cls(items)
+        return ans
+    @classmethod
+    def _mul(cls, dataObj, n):
+        return cls(dataObj.data * n)
+    @classmethod
+    def clone_data(cls, data):
+        ans = list()
+        for item in data:
+            ans.append(cls.clone_item(item))
+        return ans
+    @classmethod
+    def _load(cls, file):
+        return _SeqIO.parse(
+            handle=file, 
+            format='fasta',
+        )
+    def _save(self, file):
+        _SeqIO.write(
+            handle=file, 
+            format='fasta', 
+            sequences=self.data,
+        )
+    @staticmethod
+    def _digest_item(item):
+        ans = dict()
+        ans['seq'] = _Seq.Seq(normstr(item.seq))
+        ans['name'] = str(item.id)
+        return ans
+    @staticmethod
+    def _calc_item(*, name, seq):
+        ans = _SeqRecord.SeqRecord(
+            seq=_Seq.Seq(normstr(seq)),
+            id=str(name),
+            description="",
+        )
+        return ans
+    @classmethod
+    def clone_item(cls, item):
+        digest = cls._digest_item(item)
+        ans = cls._calc_item(**digest)
+        return ans
+    @staticmethod
+    def _default():
+        return list()
+    def ids(self):
+        return [rec.id for rec in self.data]
+    def seqs(self):
+        return [rec.seq for rec in self.data]
+    def append(self, name, seq):
+        data = self.data
+        item = (name, seq)
+        data.append(item)
+        self.data = data
+    def pop(self, *args, **kwargs):
+        data = self.data
+        ans = data.pop(*args, **kwargs)
+        self.data = data
+        return ans
+    def clear(self):
+        self.data = list()
+
+
+
 
 def data(*, seq, go, end):
     if _na.anyisna(seq, go, end):
@@ -76,10 +201,10 @@ def data(*, seq, go, end):
     ans['go'] = go
     ans['end'] = end
     ans['seq'] = cut(seq, go, end, strict=True)
-    ans['seq-len'] = len(ans['seq'])
+    ans['seq_len'] = len(ans['seq'])
     ans['tr'] = tr(ans['seq'])
-    ans['tr-len'] = len(ans['tr'])
-    ans['contains-stop'] = '*' in ans['tr']
+    ans['tr_len'] = len(ans['tr'])
+    ans['contains_stop'] = '*' in ans['tr']
     ans['gravy'] = gravy(ans['tr'])
     return ans
 
@@ -92,7 +217,7 @@ def seq3(seq, go=None, end=None):
 
 def cut(seq, go=None, end=None, strict=False):
     if go is not None and end is not None and go > end:
-        raise IndexError(f"One cannot cut the seq {ascii(str(seq))} from {go} until {end}! ")
+        raise IndexError(f"One cannot cut the seq {seq.__repr__()} from {go} until {end}! ")
     if go is not None and go < 0:
         if strict:
             raise IndexError(f"The value go={go} will not be accepted! ")
@@ -150,6 +275,7 @@ def gravy(translation):
         'X':float('nan'),
         'Y':-1.3,
         '-':float('nan'),
+        '*':float('nan'),
     }
     answers = [values[k] for k in translation if _na.notna(values[k])]
     if len(answers):
