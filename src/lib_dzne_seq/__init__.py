@@ -3,7 +3,8 @@ import Bio.SeqIO as _SeqIO
 import Bio.SeqRecord as _SeqRecord
 import gravy as _gravy
 import lib_dzne_filedata as _fd
-import lib_dzne_math.na as _na
+import na_quantors as _na
+import seqpad as _sp
 
 
 class SeqRead:
@@ -99,8 +100,7 @@ def data(*, seq, go, end):
 def seq3(seq, go=None, end=None):
     seq = _Seq.Seq(seq)
     seq = cut(seq, go=go, end=end)
-    while len(seq) % 3:
-        seq += 'N'
+    seq = _sp.seqpad(seq)
     return seq
 
 def cut(seq, go=None, end=None, strict=False):
